@@ -18,10 +18,21 @@ defmodule AshDoubleEntry.Test.Account do
     pre_check_identities_with AshDoubleEntry.Test.Domain
     transfer_resource AshDoubleEntry.Test.Transfer
     balance_resource AshDoubleEntry.Test.Balance
+    description_resource(AshDoubleEntry.Test.Description)
     open_action_accept [:allow_zero_balance]
   end
 
   attributes do
+    uuid_v7_primary_key :id
+
+    attribute :identifier, :string do
+      allow_nil? false
+    end
+
+    attribute :currency, :string do
+      allow_nil? false
+    end
+
     attribute :allow_zero_balance, :boolean do
       default true
     end

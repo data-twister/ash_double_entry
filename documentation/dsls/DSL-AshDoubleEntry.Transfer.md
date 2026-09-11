@@ -21,6 +21,7 @@ An extension for creating a double entry ledger transfer. See the getting starte
 | [`account_resource`](#transfer-account_resource){: #transfer-account_resource .spark-required} | `module` |  | The resource to use for account balances |
 | [`pre_check_identities_with`](#transfer-pre_check_identities_with){: #transfer-pre_check_identities_with } | `module` |  | A domain to use to precheck generated identities. Required by certain data layers. |
 | [`balance_resource`](#transfer-balance_resource){: #transfer-balance_resource } | `module` |  | The resource being used for balances |
+| [`description_resource`](#transfer-description_resource){: #transfer-description_resource } | `module` |  | The resource used for descriptions |
 | [`create_accept`](#transfer-create_accept){: #transfer-create_accept } | `atom \| list(atom)` | `[]` | Additional attributes to accept when creating a transfer |
 | [`destroy_balances?`](#transfer-destroy_balances?){: #transfer-destroy_balances? } | `boolean` | `false` | Whether or not balances must be manually destroyed. See the getting started guide for more. |
 

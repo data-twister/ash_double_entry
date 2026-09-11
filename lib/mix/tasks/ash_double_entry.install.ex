@@ -37,45 +37,32 @@ if Code.ensure_loaded?(Igniter) do
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
-        # Groups allow for overlapping arguments for tasks by the same author
-        # See the generators guide for more.
         group: :ash,
-        # dependencies to add
         adds_deps: [],
-        # dependencies to add and call their associated installers, if they exist
         installs: [
           {:ash_money, "~> 0.2"}
         ],
-        # An example invocation
         example: __MODULE__.Docs.example(),
-        # A list of environments that this should be installed in.
         only: nil,
-        # a list of positional arguments, i.e `[:file]`
         positional: [],
-        # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
-        # This ensures your option schema includes options from nested tasks
         composes: [],
-        # `OptionParser` schema
         schema: [
           repo: :string
         ],
-        # Default values for the options in the `schema`
         defaults: [],
-        # CLI aliases
         aliases: [r: :repo],
-        # A list of options in the schema that are required
         required: []
       }
     end
 
     @impl Igniter.Mix.Task
     def igniter(igniter) do
-      # Do your work here and return an updated igniter
       prefix = Igniter.Project.Module.module_name_prefix(igniter)
 
       account = Module.concat([prefix, "Ledger", "Account"])
       transfer = Module.concat([prefix, "Ledger", "Transfer"])
       balance = Module.concat([prefix, "Ledger", "Balance"])
+      description = Module.concat([prefix, "Ledger", "Description"])
       domain = Module.concat([prefix, "Ledger"])
 
       data_layer =
@@ -100,7 +87,8 @@ if Code.ensure_loaded?(Igniter) do
           |> Spark.Igniter.prepend_to_section_order(:"Ash.Resource", [
             :account,
             :balance,
-            :transfer
+            :transfer,
+            :description
           ])
           |> Igniter.Project.Config.configure(
             "config.exs",
@@ -117,12 +105,22 @@ if Code.ensure_loaded?(Igniter) do
             [:custom_types, :money],
             AshMoney.Types.Money
           )
-          |> create_accounts(transfer, account, balance, data_layer, repo, domain)
-          |> create_balances(transfer, account, balance, data_layer, repo, domain)
-          |> create_transfers(transfer, account, balance, data_layer, repo, domain)
+          |> create_accounts(transfer, account, balance, description, data_layer, repo, domain)
+          |> create_balances(transfer, account, balance, description, data_layer, repo, domain)
+          |> create_transfers(transfer, account, balance, description, data_layer, repo, domain)
+          |> create_descriptions(
+            transfer,
+            account,
+            balance,
+            description,
+            data_layer,
+            repo,
+            domain
+          )
           |> Ash.Domain.Igniter.add_resource_reference(domain, account)
           |> Ash.Domain.Igniter.add_resource_reference(domain, balance)
           |> Ash.Domain.Igniter.add_resource_reference(domain, transfer)
+          |> Ash.Domain.Igniter.add_resource_reference(domain, description)
           |> Ash.Igniter.codegen("add_ledger")
         else
           Igniter.add_warning(igniter, """
@@ -142,7 +140,16 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
-    defp create_balances(igniter, transfer, account, balance, data_layer, repo, domain) do
+    defp create_balances(
+           igniter,
+           transfer,
+           account,
+           balance,
+           _description,
+           data_layer,
+           repo,
+           domain
+         ) do
       {balance_attr, can_add_money} =
         if data_layer == AshPostgres.DataLayer do
           {"""
@@ -217,7 +224,75 @@ if Code.ensure_loaded?(Igniter) do
       """)
     end
 
-    defp create_accounts(igniter, transfer, account, balance, data_layer, repo, domain) do
+    defp create_descriptions(
+           igniter,
+           transfer,
+           account,
+           _balance,
+           description,
+           data_layer,
+           repo,
+           domain
+         ) do
+      Igniter.Project.Module.create_module(igniter, description, """
+      use Ash.Resource,
+        domain: #{domain},
+        data_layer: #{inspect(data_layer)},
+        extensions: [AshDoubleEntry.Description]
+
+      #{data_layer_dsl_block(data_layer)} do
+        table "ledger_descriptions"
+        repo #{inspect(repo)}
+      end
+
+      description do
+        transfer_resource #{inspect(transfer)}
+        account_resource #{inspect(account)}
+      end
+
+      actions do
+        defaults [:read]
+
+        create :add do
+          accept [:description, :account_id, :transfer_id]
+        end
+      end
+
+      attributes do
+        uuid_v7_primary_key :id
+
+        attribute :description, :string do
+          allow_nil? false
+        end
+
+        timestamps()
+      end
+
+      relationships do
+        belongs_to :transfer, #{inspect(transfer)} do
+          attribute_type AshDoubleEntry.ULID
+          allow_nil? false
+          attribute_writable? true
+        end
+
+        belongs_to :account, #{inspect(account)} do
+          allow_nil? false
+          attribute_writable? true
+        end
+      end
+      """)
+    end
+
+    defp create_accounts(
+           igniter,
+           transfer,
+           account,
+           balance,
+           description,
+           data_layer,
+           repo,
+           domain
+         ) do
       Igniter.Project.Module.create_module(igniter, account, """
       use Ash.Resource,
         domain: #{domain},
@@ -230,9 +305,9 @@ if Code.ensure_loaded?(Igniter) do
       end
 
       account do
-        # configure the other resources it will interact with
         transfer_resource #{inspect(transfer)}
         balance_resource #{inspect(balance)}
+        description_resource #{inspect(description)}
       end
 
       attributes do
@@ -249,11 +324,6 @@ if Code.ensure_loaded?(Igniter) do
         timestamps()
       end
 
-      account do
-        transfer_resource #{inspect(transfer)}
-        balance_resource #{inspect(balance)}
-      end
-
       identities do
         identity :unique_identifier, [:identifier]
       end
@@ -266,13 +336,16 @@ if Code.ensure_loaded?(Igniter) do
         end
 
         read :lock_accounts do
-          # Used to lock accounts while doing ledger operations
           prepare {AshDoubleEntry.Account.Preparations.LockForUpdate, []}
         end
       end
 
       relationships do
         has_many :balances, #{inspect(balance)} do
+          destination_attribute :account_id
+        end
+
+        has_many :descriptions, #{inspect(description)} do
           destination_attribute :account_id
         end
       end
@@ -300,7 +373,16 @@ if Code.ensure_loaded?(Igniter) do
       """)
     end
 
-    defp create_transfers(igniter, transfer, account, balance, data_layer, repo, domain) do
+    defp create_transfers(
+           igniter,
+           transfer,
+           account,
+           balance,
+           description,
+           data_layer,
+           repo,
+           domain
+         ) do
       Igniter.Project.Module.create_module(igniter, transfer, """
       use Ash.Resource,
         domain: #{domain},
@@ -315,6 +397,7 @@ if Code.ensure_loaded?(Igniter) do
       transfer do
         account_resource #{inspect(account)}
         balance_resource #{inspect(balance)}
+        description_resource #{inspect(description)}
       end
 
       actions do
@@ -322,6 +405,8 @@ if Code.ensure_loaded?(Igniter) do
 
         create :transfer do
           accept [:amount, :timestamp, :from_account_id, :to_account_id]
+          argument :description, :string, allow_nil?: true
+          change {AshPhoenixStarter.Transfers.Changes.CreateDescription, []}
         end
       end
 
@@ -349,6 +434,10 @@ if Code.ensure_loaded?(Igniter) do
         end
 
         has_many :balances, #{inspect(balance)}
+        has_one :description_record, #{inspect(description)} do
+          destination_attribute :transfer_id
+          attribute_writable? true
+        end
       end
       """)
     end

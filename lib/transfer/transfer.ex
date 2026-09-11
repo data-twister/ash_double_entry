@@ -23,6 +23,10 @@ defmodule AshDoubleEntry.Transfer do
         type: {:spark, Ash.Resource},
         doc: "The resource being used for balances"
       ],
+      description_resource: [
+        type: {:spark, Ash.Resource},
+        doc: "The resource used for descriptions"
+      ],
       create_accept: [
         type: {:wrap_list, :atom},
         default: [],

@@ -50,7 +50,15 @@ defmodule AshDoubleEntry.Transfer.Transformers.AddStructure do
     |> Ash.Resource.Builder.add_new_action(:create, :transfer,
       accept:
         [:amount, :timestamp, :from_account_id, :to_account_id] ++
-          AshDoubleEntry.Transfer.Info.transfer_create_accept!(dsl)
+          AshDoubleEntry.Transfer.Info.transfer_create_accept!(dsl),
+      arguments: [
+        Ash.Resource.Builder.build_action_argument(:description, :string, allow_nil?: true)
+      ],
+      changes: [
+        Ash.Resource.Builder.build_action_change(
+          {AshPhoenixStarter.Transfers.Changes.CreateDescription, []}
+        )
+      ]
     )
     |> Ash.Resource.Builder.add_action(:read, :read_transfers,
       pagination: Ash.Resource.Builder.build_pagination(keyset?: true, required?: false)

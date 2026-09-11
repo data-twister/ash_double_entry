@@ -420,5 +420,31 @@ defmodule AshDoubleEntryTest do
         |> Ash.create!()
       end
     end
+
+    test "a transfer can be created with an optional description" do
+      account_one =
+        Account
+        |> Ash.Changeset.for_create(:open, %{identifier: "account_one", currency: "USD"})
+        |> Ash.create!()
+
+      account_two =
+        Account
+        |> Ash.Changeset.for_create(:open, %{identifier: "account_two", currency: "USD"})
+        |> Ash.create!()
+
+      transfer =
+        Transfer
+        |> Ash.Changeset.for_create(:transfer, %{
+          amount: Money.new!(:USD, 50),
+          from_account_id: account_one.id,
+          to_account_id: account_two.id,
+          description: "Monthly subscription payment"
+        })
+        |> Ash.create!()
+        |> Ash.load!(:description_record)
+
+      assert transfer.description_record.description == "Monthly subscription payment"
+      assert transfer.description_record.account_id == account_one.id
+    end
   end
 end

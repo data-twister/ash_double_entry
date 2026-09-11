@@ -2,31 +2,24 @@
 #
 # SPDX-License-Identifier: MIT
 
-defmodule AshDoubleEntry.Test.Transfer do
+defmodule AshDoubleEntry.Test.Description do
   @moduledoc false
   use Ash.Resource,
     domain: AshDoubleEntry.Test.Domain,
     data_layer: AshPostgres.DataLayer,
-    extensions: [AshDoubleEntry.Transfer]
+    extensions: [AshDoubleEntry.Description]
 
   postgres do
-    table "transfers"
+    table "descriptions"
     repo(AshDoubleEntry.Test.Repo)
   end
 
-  transfer do
+  description do
+    transfer_resource AshDoubleEntry.Test.Transfer
     account_resource AshDoubleEntry.Test.Account
-    balance_resource AshDoubleEntry.Test.Balance
-    description_resource(AshDoubleEntry.Test.Description)
   end
 
   actions do
     defaults [:read, :destroy]
-
-    update :update do
-      accept [:amount]
-      change get_and_lock_for_update()
-      require_atomic? false
-    end
   end
 end

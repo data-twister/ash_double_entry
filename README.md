@@ -26,6 +26,7 @@ AshDoubleEntry implements double entry accounting through three core resources:
 1. **[AshDoubleEntry.Account DSL](documentation/dsls/DSL-AshDoubleEntry.Account.md)**, which represents accounts in your ledger (such as bank accounts, revenue accounts, expense accounts, etc.)
 2. **[AshDoubleEntry.Transfer DSL](documentation/dsls/DSL-AshDoubleEntry.Transfer.md)**, which represents transactions between accounts, always linking a `from_account` and `to_account` with an amount
 3. **[AshDoubleEntry.Balance DSL](documentation/dsls/DSL-AshDoubleEntry.Balance.md)**, which tracks the balance of each account at the point of each transfer for recordkeeping
+4. **[AshDoubleEntry.Description DSL](documentation/dsls/DSL-AshDoubleEntry.Description.md)**, which describes each transfer for recordkeeping
 
 When you create a balance transfer, the system creates entries for both the credit and debit accounts and updates all future balances to reflect the transaction.
 

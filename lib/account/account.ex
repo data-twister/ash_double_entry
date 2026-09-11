@@ -30,6 +30,10 @@ defmodule AshDoubleEntry.Account do
         type: {:spark, Ash.Resource},
         doc: "The resource used for balances",
         required: true
+      ],
+      description_resource: [
+        type: {:spark, Ash.Resource},
+        doc: "The resource used for descriptions"
       ]
     ]
   }
